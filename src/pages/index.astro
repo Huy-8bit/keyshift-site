@@ -2,15 +2,13 @@
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import HeroFlow from '../components/HeroFlow.astro';
-import CostCompare from '../components/CostCompare.astro';
 import ReadFlow from '../components/ReadFlow.astro';
 import StateMachine from '../components/StateMachine.astro';
 import Architecture from '../components/Architecture.astro';
 import CodeTabs from '../components/CodeTabs.astro';
-import Bars from '../components/Bars.astro';
 import { INSTALL, LINKS, SITE, doc } from '../config';
 import {
-  costs, otherStates, worked, charts, alsoMeasured, comparison, compatibility, components, limits, docs,
+  capabilities, otherStates, worked, results, resultsNote, compatibility, components, limits, docs,
 } from '../content';
 
 const supportLabel = { caching: 'Local caching', detection: 'Hot-key detection only', direct: 'Reads go directly to Redis' } as const;
@@ -45,32 +43,26 @@ const supportLabel = { caching: 'Local caching', detection: 'Hot-key detection o
       </div>
     </section>
 
-    <!-- Why -->
-    <section class="section" id="why" aria-labelledby="why-title">
+    <!-- What it does -->
+    <section class="section" id="what" aria-labelledby="what-title">
       <div class="wrap">
         <header class="section-head reveal">
-          <p class="eyebrow">Why it exists</p>
-          <h2 id="why-title">Caching every read gets expensive as you scale.</h2>
+          <p class="eyebrow">What it does</p>
+          <h2 id="what-title">Local caching, only for the keys that earn it.</h2>
           <p class="section-lead">
-            Redis can push invalidations to clients that keep a local copy of a key, so a client-side cache can take most hot-key reads off
-            Redis. Turn it on for every read, though, and three costs grow with your fleet.
+            KeyShift runs inside each instance of your service, next to the Redis client you already use. It decides key by key what is worth
+            keeping in local memory, based on what it measures in that instance, and Redis keeps those copies fresh with invalidations.
           </p>
         </header>
-        <ol class="costs reveal">
-          {costs.map((c, i) => (
+        <ol class="caps reveal">
+          {capabilities.map((c, i) => (
             <li>
-              <span class="costs-n" aria-hidden="true">{i + 1}</span>
+              <span class="caps-n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
               <h3>{c.title}</h3>
-              <p>{c.body}</p>
+              <p set:html={c.body} />
             </li>
           ))}
         </ol>
-        <div class="reveal"><CostCompare /></div>
-        <p class="pull reveal">
-          KeyShift makes the call per instance, from what it actually measures. A key gets cached when its local read rate and hit ratio
-          justify it, and loses its place when invalidations show it isn’t paying off. Your Redis client stays the same; KeyShift only decides
-          what it caches.
-        </p>
       </div>
     </section>
 
@@ -217,48 +209,23 @@ const supportLabel = { caching: 'Local caching', detection: 'Hot-key detection o
       <div class="wrap">
         <header class="section-head reveal">
           <p class="eyebrow">Benchmarks</p>
-          <h2 id="bench-title">Compared with caching every read.</h2>
+          <h2 id="bench-title">What it did in the benchmark suite.</h2>
           <p class="section-lead">
-            Both approaches took 50–86% of GETs off Redis on workloads with locality. The difference is in what it cost to get there.
+            Results from KeyShift’s reproducible benchmarks, run on one developer machine: Apple M1 Pro, Redis 8.6 in Docker. Read them as
+            benchmark results, not guarantees.{' '}
+            <a class="inline-link" href={doc('benchmarks.md')} rel="noopener">Method and full results</a>
           </p>
         </header>
-        <p class="method reveal">
-          <Icon name="flask" size={18} />
-          <span>
-            Measured on one developer machine: Apple M1 Pro, Redis 8.6 in Docker. Read these as benchmark results, not guarantees.{' '}
-            <a href={doc('benchmarks.md')} rel="noopener">Method and full results</a>
-          </span>
-        </p>
-        <div class="charts">
-          {charts.map((c, i) => <div class="reveal" style={`--d:${(i % 2) * 80}ms`}><Bars chart={c} /></div>)}
-        </div>
-        <div class="also reveal">
-          <h3>Also measured</h3>
-          <ul>{alsoMeasured.slice(1).map((m) => <li>{m}</li>)}</ul>
-        </div>
-
-        <div class="compare-block reveal">
-          <h3>Next to the drivers’ own caches</h3>
-          <div class="table-card">
-            <table class="compare">
-              <thead>
-                <tr>{comparison.head.map((h, i) => <th scope="col" class:list={{ 'col-ks': i === 3 }}>{h || <span class="sr-only">Feature</span>}</th>)}</tr>
-              </thead>
-              <tbody>
-                {comparison.rows.map((r) => (
-                  <tr>
-                    <th scope="row">{r[0]}</th>
-                    {r.slice(1).map((c, i) => (
-                      <td class:list={{ 'col-ks': i === 2, 'is-none': c === '–' }} data-label={comparison.head[i + 1]}>
-                        {c === '–' ? <><span aria-hidden="true">–</span><span class="sr-only">No</span></> : c}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ul class="results reveal">
+          {results.map((r) => (
+            <li>
+              <span class="result-value">{r.value}</span>
+              <span class="result-label">{r.label}</span>
+              <span class="result-note">{r.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p class="results-note reveal">{resultsNote}</p>
       </div>
     </section>
 

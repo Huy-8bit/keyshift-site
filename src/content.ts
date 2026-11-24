@@ -1,18 +1,22 @@
 // Page copy. Facts and numbers come from the KeyShift README and its docs (how-it-works.md, adaptive-admission.md,
 // benchmarks.md). Nothing is invented. Benchmark figures are from one developer machine and are labelled as such.
 
-export const costs = [
+export const capabilities = [
   {
-    title: 'Busy keys keep getting thrown away',
-    body: 'Every write invalidates every cached copy of a key. Until that invalidation arrives, readers can still get the old value.',
+    title: 'Finds the hot keys',
+    body: 'Every read passes through a small hot-key detector with fixed memory, about 0.8 MiB at default limits. Counts fade every window, so old traffic doesn’t keep a key hot.',
   },
   {
-    title: 'Redis has to remember everything you read',
-    body: 'With default tracking, Redis keeps a record of every key each instance has read. The tracking table and the invalidation traffic grow with the whole read set, not just the hot part.',
+    title: 'Caches what pays off',
+    body: 'Once per window, each candidate is scored on read rate, hit ratio, writes, invalidations, value size and the memory budget. Only keys that keep qualifying are cached.',
   },
   {
-    title: 'Hot across the fleet, lukewarm on each pod',
-    body: 'A key read 2,000 times a second across 50 pods is read only 40 times a second by each one.',
+    title: 'Backs off by itself',
+    body: 'When invalidations show a cached key isn’t paying off, it is demoted and kept out for a while. When tracking can’t be confirmed, caching pauses and reads go to Redis.',
+  },
+  {
+    title: 'Explains every decision',
+    body: 'Ask about any key with <code>client.Explain(key)</code> and you get its state and the reason for it, in plain words.',
   },
 ] as const;
 
@@ -33,7 +37,7 @@ export const scenarios: Scenario[] = [
     steps: [
       'Your code calls <code>client.Get(ctx, key)</code>.',
       'KeyShift checks the admitted set. This key isn’t in it.',
-      'The read goes to Redis through your normal client, exactly as it would without KeyShift.',
+      'The read goes straight to Redis through your normal client.',
       'The hot-key detector records the read and the size of the value.',
     ],
   },
@@ -109,83 +113,38 @@ export const worked = [
   { key: 'report:2026', reads: '50/s', writes: 'none', state: 'bypassed', outcome: 'The value is 2 MiB, over the size limit.' },
 ] as const;
 
-export type BarChart = {
-  id: string;
-  title: string;
-  context: string;
-  max: number;
-  rows: { label: string; value: number; display: string; ks?: boolean }[];
-  takeaway: string;
-  favours?: 'keyshift' | 'conventional';
-};
-
-export const charts: BarChart[] = [
+// Benchmark results for KeyShift itself (docs/benchmarks.md). One developer machine; not guarantees.
+export const results = [
+  { value: '50–86%', label: 'fewer GETs reaching Redis', note: 'On workloads with locality.' },
   {
-    id: 'tracked',
-    title: 'Keys Redis had to track',
-    context: 'Zipf workload, one instance',
-    max: 32885,
-    rows: [
-      { label: 'Cache every read', value: 32885, display: '32,885' },
-      { label: 'KeyShift', value: 547, display: '≤ 547', ks: true },
-    ],
-    takeaway: 'About 100× fewer. KeyShift tracked a few hundred keys, and never more than 547 in any scenario.',
+    value: '≤ 547',
+    label: 'keys tracked by Redis',
+    note: 'Per instance, in any scenario. Only admitted keys are tracked, so a Zipf workload needed just a few hundred.',
   },
   {
-    id: 'invalidations',
-    title: 'Invalidations sent',
-    context: 'Open-loop Zipf run',
-    max: 5739,
-    rows: [
-      { label: 'Cache every read', value: 5739, display: '5,739' },
-      { label: 'KeyShift', value: 92, display: '92', ks: true },
-    ],
-    takeaway: 'Fewer tracked keys means far fewer invalidations to send.',
+    value: '0',
+    label: 'stale reads',
+    note: 'On a write-heavy workload, where it chose not to cache the busy keys, and with connections killed and Redis restarted mid-run.',
   },
   {
-    id: 'stale',
-    title: 'Stale reads on a write-heavy workload',
-    context: 'Open loop',
-    max: 10,
-    rows: [
-      { label: 'Cache every read', value: 6.9, display: '6.9%' },
-      { label: 'KeyShift', value: 0, display: '0', ks: true },
-    ],
-    takeaway: 'The stale values were up to 8.7 ms old. KeyShift didn’t cache those keys at all.',
+    value: '~0.3 µs',
+    label: 'per local cache hit',
+    note: 'rueidis driver, any value size; go-redis about 0.4 µs at 64 bytes. A Redis round trip on the same machine took about 0.2 ms.',
   },
   {
-    id: 'hotshift',
-    title: 'Hit ratio when the hot set moves',
-    context: 'Hot-shift scenario',
-    max: 100,
-    rows: [
-      { label: 'Cache every read', value: 71, display: '71%' },
-      { label: 'KeyShift', value: 50, display: '50%', ks: true },
-    ],
-    takeaway: 'Caching everything wins here, and right after a cold start, because KeyShift waits for evidence first.',
-    favours: 'conventional',
+    value: '~0.2 s',
+    label: 'to pause caching',
+    note: 'When the network silently partitions, the health probe suspends caching. Measured in tests.',
   },
-];
-
-export const alsoMeasured = [
-  'Both approaches took 50–86% of GETs off Redis on workloads with locality.',
-  'A local hit took about 0.3 µs with rueidis at any value size, and about 0.4 µs with go-redis at 64 bytes. A Redis round trip on the same machine took about 0.2 ms.',
-  'With connections killed and Redis restarted mid-run, KeyShift served no stale reads.',
-  'Where caching can’t help (uniform access, oversized values), it admitted nothing and cost the same as running without a cache.',
-  'In a logical simulation of 5,000 SDK instances on one machine, the controller aggregated the fleet in about 0.1 s, with upload p99 under 5 ms. It is a simulation, not 5,000 real pods.',
+  {
+    value: '~0.1 s',
+    label: 'to aggregate 5,000 instances',
+    note: 'Controller, upload p99 under 5 ms. A logical simulation on one machine, not 5,000 real pods.',
+  },
 ] as const;
 
-export const comparison = {
-  head: ['', 'go-redis client-side cache', 'rueidis DoCache', 'KeyShift'],
-  rows: [
-    ['What gets cached', 'Every cacheable read', 'Whatever the caller chooses', 'Keys admitted by measured local benefit'],
-    ['Keys tracked by Redis', 'Every key read', 'Cached keys (OPTIN)', 'Cached keys only, on both drivers'],
-    ['Write-heavy keys', 'Cached anyway', 'Cached if requested', 'Rejected or put in cooldown'],
-    ['Hot-key detection', '–', '–', 'Yes'],
-    ['Silent network partition', 'Bounded by MaxStaleness', 'Bounded by client TTL', 'Health probe suspends caching (~0.2 s in tests)'],
-    ['Fleet view and policies', '–', '–', 'Optional controller'],
-  ],
-} as const;
+export const resultsNote =
+  'On workloads where caching can’t help, such as uniform access or oversized values, KeyShift admitted nothing and added no caching cost.';
 
 export type Support = 'caching' | 'detection' | 'direct';
 export const compatibility: { server: string; goredis: [Support, string]; rueidis: [Support, string]; next?: boolean }[] = [
@@ -235,7 +194,7 @@ export const limits = [
   },
   {
     title: 'It waits for evidence',
-    body: 'A key needs a couple of windows of good numbers before it is cached. Right after a cold start, or when the hot set moves quickly, caching every read gets more hits.',
+    body: 'A key has to qualify for a couple of windows before it is cached. Right after a cold start, or when the hot set moves quickly, it takes those windows before the new hot keys are served from memory.',
   },
   {
     title: 'Redis Cluster needs rueidis',
