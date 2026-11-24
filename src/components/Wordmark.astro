@@ -1,0 +1,8 @@
+---
+// Text wordmark. KeyShift has no logo yet; the bar underneath is the site's heat scale, not a brand mark.
+interface Props {
+  size?: 'sm' | 'lg';
+}
+const { size = 'sm' } = Astro.props;
+---
+<span class:list={['wordmark', `wordmark-${size}`]}>Key<span class="wordmark-shift">Shift</span><i aria-hidden="true"></i></span>

@@ -1,0 +1,20 @@
+---
+import { lifecycle, sideStates } from '../content';
+---
+<div class="life" aria-labelledby="life-title">
+  <p class="life-title" id="life-title">Key lifecycle</p>
+  <ol class="life-chain">
+    {lifecycle.map((s, i) => (
+      <li class="life-step" data-state={s.state}>
+        <span class="life-pill">{s.label}</span>
+        <span class="life-note">{s.note}</span>
+        {i < lifecycle.length - 1 && <span class="life-arrow" aria-hidden="true"></span>}
+      </li>
+    ))}
+  </ol>
+  <ul class="life-side" aria-label="Other states">
+    {sideStates.map((s) => (
+      <li data-state={s.state}><span class="life-pill life-pill-sm">{s.label}</span>{s.note && <span class="life-side-note">{s.note}</span>}</li>
+    ))}
+  </ul>
+</div>

@@ -1,0 +1,370 @@
+---
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import KeyField from '../components/KeyField.astro';
+import ProblemViz from '../components/ProblemViz.astro';
+import Lifecycle from '../components/Lifecycle.astro';
+import CodeTabs from '../components/CodeTabs.astro';
+import Bars from '../components/Bars.astro';
+import Architecture from '../components/Architecture.astro';
+import Wordmark from '../components/Wordmark.astro';
+import { INSTALL, LINKS, SITE, doc } from '../config';
+import {
+  problems, steps, charts, stats, comparison, compatibility, sdkApi, sdkNext, cliCommands, limits, docGroups,
+} from '../content';
+
+const supportLabel = { caching: 'Local caching', detection: 'Hot-key detection only', direct: 'Reads go directly to Redis' } as const;
+---
+<Base>
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <a class="status" href={LINKS.changelog} rel="noopener">
+            <span class="status-dot" aria-hidden="true"></span>v{SITE.version} · before 1.0, APIs may change
+          </a>
+          <h1 id="hero-title">Detect <span class="heat-text">hot keys.</span><br /> Cache intelligently.<br /> Scale efficiently.</h1>
+          <p class="lead">
+            Adaptive, selective client-side caching for Redis in Go. In each instance of your service, KeyShift finds the keys worth caching and serves
+            them from local memory, while Redis tells it when a value changes. Every other read goes straight to Redis.
+          </p>
+          <div class="install">
+            <code><span class="install-prompt" aria-hidden="true">$</span> {INSTALL}</code>
+            <button class="copy copy-inline" type="button" data-copy={INSTALL} aria-label="Copy the install command">
+              <Icon name="copy" size={16} class="i-copy" /><Icon name="check" size={16} class="i-done" /><span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#quickstart">Quick start <Icon name="arrow-right" size={18} /></a>
+            <a class="btn btn-ghost" href={LINKS.repo} rel="noopener"><Icon name="github" size={18} /> View on GitHub</a>
+          </div>
+          <ul class="hero-meta" aria-label="At a glance">
+            <li>Go 1.26+</li><li>Redis 6.0+ with RESP3</li><li>go-redis or rueidis</li><li>Apache 2.0</li>
+          </ul>
+        </div>
+        <KeyField />
+      </div>
+    </section>
+
+    <!-- Problem -->
+    <section class="section" id="problem" aria-labelledby="problem-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>The problem</p>
+          <h2 id="problem-title">Caching every read gets more expensive as the fleet grows.</h2>
+          <p class="section-lead">
+            Redis client-side caching can take most reads of hot keys off Redis. Turned on for everything, it brings three costs that grow with the
+            number of instances.
+          </p>
+        </header>
+        <ol class="problems">
+          {problems.map((p, i) => (
+            <li class="card problem reveal" style={`--d:${i * 80}ms`}>
+              <ProblemViz kind={p.viz} />
+              <h3>{p.title}</h3>
+              <p>{p.body}</p>
+            </li>
+          ))}
+        </ol>
+        <div class="answer reveal">
+          <p class="answer-title">KeyShift decides per instance, from the measured workload.</p>
+          <p>
+            It caches a key only when the local read rate and the observed hit ratio justify it, keeps measuring, and backs off when invalidations
+            show that caching does not pay. It does not replace go-redis or rueidis. It decides what they should cache.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>How it works</p>
+          <h2 id="how-title">From the first read to a cached key, in six steps.</h2>
+          <p class="section-lead">KeyShift runs inside your service, between your code and the Redis client library, and makes every decision locally.</p>
+        </header>
+        <ol class="steps">
+          {steps.map((s, i) => (
+            <li class="card step reveal" style={`--d:${(i % 3) * 70}ms`}>
+              <span class="step-n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
+              {s.title === 'Explain' && (
+                <pre class="mini-code"><code><span class="tok-fn">client.Explain</span>(<span class="tok-str">"inventory:55"</span>).Reason
+<span class="tok-cmt">// "observed hit ratio 0.04 below exit threshold 0.30; cooldown 1m0s"</span></code></pre>
+              )}
+              <ul class="facts">{s.facts.map((f) => <li>{f}</li>)}</ul>
+            </li>
+          ))}
+        </ol>
+        <div class="reveal"><Lifecycle /></div>
+      </div>
+    </section>
+
+    <!-- Quick start -->
+    <section class="section" id="quickstart" aria-labelledby="qs-title">
+      <div class="wrap qs-grid">
+        <header class="section-head qs-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>Quick start</p>
+          <h2 id="qs-title">Add it to one service.</h2>
+          <p class="section-lead">
+            The SDK works on its own, with no extra infrastructure. It needs Go 1.26 or later, and Redis 6.0 or later with RESP3 for local caching.
+          </p>
+          <ul class="link-list">
+            <li><a href={doc('quickstart.md')} rel="noopener"><Icon name="book" size={18} /> Quickstart guide <Icon name="arrow-up-right" size={15} /></a></li>
+            <li><a href={LINKS.pkg} rel="noopener"><Icon name="code" size={18} /> Go reference <Icon name="arrow-up-right" size={15} /></a></li>
+            <li><a href={doc('consistency.md')} rel="noopener"><Icon name="shield" size={18} /> What not to cache <Icon name="arrow-up-right" size={15} /></a></li>
+          </ul>
+        </header>
+        <div class="reveal" style="--d:80ms"><CodeTabs /></div>
+      </div>
+    </section>
+
+    <!-- Benchmarks -->
+    <section class="section" id="benchmarks" aria-labelledby="bench-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>Benchmarks</p>
+          <h2 id="bench-title">Measured against caching every read.</h2>
+          <p class="section-lead">
+            The baseline is conventional client-side caching, which caches every read. Both take a large share of reads off Redis. They differ in
+            what that costs.
+          </p>
+        </header>
+        <p class="method reveal">
+          <Icon name="flask" size={18} />
+          <span>
+            Results from a single developer machine: Apple M1 Pro, Redis 8.6 in Docker. They are benchmark results, not guarantees.{' '}
+            <a href={doc('benchmarks.md')} rel="noopener">Method and full results</a>
+          </span>
+        </p>
+        <div class="charts">
+          {charts.map((c, i) => <div class="reveal" style={`--d:${(i % 2) * 80}ms`}><Bars chart={c} /></div>)}
+        </div>
+        <ul class="stats">
+          {stats.map((s, i) => (
+            <li class="stat reveal" style={`--d:${i * 60}ms`}>
+              <span class="stat-value">{s.value}</span>
+              <span class="stat-label">{s.label}</span>
+              <span class="stat-note">{s.note}</span>
+            </li>
+          ))}
+        </ul>
+        <div class="sim reveal">
+          <div class="sim-copy">
+            <p class="sim-kicker">Control plane, simulated</p>
+            <p>
+              In a logical simulation of 5,000 SDK instances, the controller aggregated the fleet in about 0.1 s, with upload p99 latency under 5 ms.
+              The simulation ran on one machine. It is not 5,000 real pods.
+            </p>
+          </div>
+          <dl class="sim-figures">
+            <div><dt>Simulated instances</dt><dd>5,000</dd></div>
+            <div><dt>Fleet aggregation</dt><dd>~0.1 s</dd></div>
+            <div><dt>Upload p99</dt><dd>&lt; 5 ms</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="section" id="compare" aria-labelledby="compare-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>Comparison</p>
+          <h2 id="compare-title">Next to the drivers’ own caches.</h2>
+          <p class="section-lead">KeyShift caches through go-redis or rueidis. What changes is which keys get cached, and how many Redis has to track.</p>
+        </header>
+        <div class="table-card reveal">
+          <table class="compare">
+            <thead>
+              <tr>{comparison.head.map((h, i) => <th scope="col" class:list={{ 'col-ks': i === 3 }}>{h || <span class="sr-only">Feature</span>}</th>)}</tr>
+            </thead>
+            <tbody>
+              {comparison.rows.map((r) => (
+                <tr>
+                  <th scope="row">{r[0]}</th>
+                  {r.slice(1).map((c, i) => (
+                    <td class:list={{ 'col-ks': i === 2, 'is-none': c === '–' }} data-label={comparison.head[i + 1]}>
+                      {c === '–' ? <><span aria-hidden="true">–</span><span class="sr-only">No</span></> : c}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's included -->
+    <section class="section" id="components" aria-labelledby="components-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>What’s included</p>
+          <h2 id="components-title">An SDK first. Everything else is optional.</h2>
+          <p class="section-lead">
+            Start with the SDK in one service. Add the controller, dashboards and CLI when you want to see and steer the whole fleet.
+          </p>
+        </header>
+        <div class="reveal"><Architecture /></div>
+        <div class="parts">
+          <article class="card part part-sdk reveal">
+            <span class="part-icon"><Icon name="package" size={22} /></span>
+            <h3>Go SDK <code>pkg/keyshift</code></h3>
+            <p>Wraps an existing go-redis client or creates its own, and works with no extra infrastructure. <code>GetFresh</code> always reads Redis.</p>
+            <ul class="api">{sdkApi.map((a) => <li><code>{a}</code></li>)}</ul>
+            <div class="next">
+              <p class="next-tag">Coming in the next release</p>
+              <ul>{sdkNext.map((n) => <li><code>{n.name}</code> {n.note}</li>)}</ul>
+            </div>
+          </article>
+          <article class="card part reveal" style="--d:60ms">
+            <span class="part-icon"><Icon name="server" size={22} /></span>
+            <h3>Controller <span class="tag">optional</span></h3>
+            <p>
+              Ingests telemetry from SDK instances and ranks hot keys across the fleet, separating locally hot from globally hot keys. It distributes
+              versioned policies with staged rollout and rollback.
+            </p>
+            <p class="part-foot">REST API with ingest, viewer and admin token roles · Prometheus fleet metrics</p>
+          </article>
+          <article class="card part reveal" style="--d:120ms">
+            <span class="part-icon"><Icon name="chart" size={22} /></span>
+            <h3>Prometheus &amp; Grafana</h3>
+            <p>
+              Two ready-made dashboards, <b>KeyShift Fleet</b> and <b>KeyShift SDK</b>. Metrics never carry raw key names: keys are sent as HMAC
+              fingerprints unless you explicitly allow them.
+            </p>
+          </article>
+          <article class="card part reveal">
+            <span class="part-icon"><Icon name="terminal" size={22} /></span>
+            <h3>CLI</h3>
+            <p>Inspect keys and servers, follow the hottest keys, manage policies, and run benchmarks and simulations.</p>
+            <p class="cli"><code>keyshift</code> {cliCommands.map((c, i) => <><code class="cli-cmd">{c}</code>{i < cliCommands.length - 1 && <span aria-hidden="true"> | </span>}</>)}</p>
+          </article>
+          <article class="card part reveal" style="--d:60ms">
+            <span class="part-icon"><Icon name="flame" size={22} /></span>
+            <h3>Redis 8.6 HOTKEYS</h3>
+            <p>Opt-in, time-bounded server-side hot-key diagnostics, run from the CLI.</p>
+          </article>
+          <article class="card part part-lab reveal">
+            <span class="part-icon"><Icon name="flask" size={22} /></span>
+            <div class="part-lab-copy">
+              <h3>Lab</h3>
+              <p>Run the whole stack on one machine with <code>make docker-up</code>, then open Grafana on port 3000.</p>
+            </div>
+            <ul class="facts">
+              <li>Docker Compose: Redis, controller, simulated pods, Prometheus, Grafana</li>
+              <li>Fault-injection tests</li>
+              <li>Reproducible benchmark suite</li>
+              <li>5,000-instance control-plane simulation</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Limits -->
+    <section class="section" id="limits" aria-labelledby="limits-title">
+      <div class="wrap limits-grid">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>Before you adopt it</p>
+          <h2 id="limits-title">Know where it fits.</h2>
+          <p class="section-lead">
+            KeyShift trades a little freshness for fewer round trips, and only where the measurements say it pays. Plan around these limits.
+          </p>
+          <ul class="link-list">
+            <li><a href={doc('consistency.md')} rel="noopener"><Icon name="shield" size={18} /> Consistency model <Icon name="arrow-up-right" size={15} /></a></li>
+            <li><a href={doc('limitations.md')} rel="noopener"><Icon name="alert" size={18} /> Limitations <Icon name="arrow-up-right" size={15} /></a></li>
+          </ul>
+        </header>
+        <ol class="limits">
+          {limits.map((l, i) => (
+            <li class="limit reveal" style={`--d:${i * 50}ms`}>
+              <h3>{l.title}</h3>
+              <p set:html={l.body} />
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+
+    <!-- Compatibility -->
+    <section class="section" id="compatibility" aria-labelledby="compat-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>Compatibility</p>
+          <h2 id="compat-title">Servers and drivers.</h2>
+          <p class="section-lead">
+            Local caching needs Redis 6.0 or later with RESP3. Without RESP3, or without permission to run CLIENT commands, KeyShift reads directly
+            from Redis.
+          </p>
+        </header>
+        <div class="table-card reveal">
+          <table class="compat">
+            <thead>
+              <tr><th scope="col">Server</th><th scope="col">go-redis driver</th><th scope="col">rueidis driver</th></tr>
+            </thead>
+            <tbody>
+              {compatibility.map((r) => (
+                <tr>
+                  <th scope="row">{r.server}{r.next && <span class="tag tag-next">next release</span>}</th>
+                  {[r.goredis, r.rueidis].map(([kind, text], i) => (
+                    <td data-label={i === 0 ? 'go-redis driver' : 'rueidis driver'}>
+                      <span class={`support support-${kind}`} title={supportLabel[kind]}><i aria-hidden="true"></i>{text}</span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note reveal">Valkey 8.1 and 9.0 support is coming in the next release and is already on the develop branch.</p>
+      </div>
+    </section>
+
+    <!-- Docs -->
+    <section class="section" id="docs" aria-labelledby="docs-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow"><i aria-hidden="true"></i>Documentation</p>
+          <h2 id="docs-title">Read the details.</h2>
+          <p class="section-lead">The documentation lives in the repository, next to the code it describes.</p>
+        </header>
+        <div class="doc-groups">
+          {docGroups.map((g, i) => (
+            <div class="doc-group reveal" style={`--d:${i * 60}ms`}>
+              <h3>{g.title}</h3>
+              <ul>
+                {g.docs.map((d) => (
+                  <li><a href={doc(d.file)} rel="noopener"><span>{d.title}</span><code>{d.file}</code></a></li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div class="cta reveal">
+          <div class="cta-copy">
+            <Wordmark size="lg" />
+            <p>Start with one service, watch what it admits and why, and decide from there.</p>
+          </div>
+          <div class="cta-actions">
+            <div class="install install-cta">
+              <code><span class="install-prompt" aria-hidden="true">$</span> {INSTALL}</code>
+              <button class="copy copy-inline" type="button" data-copy={INSTALL} aria-label="Copy the install command">
+                <Icon name="copy" size={16} class="i-copy" /><Icon name="check" size={16} class="i-done" /><span class="copy-label">Copy</span>
+              </button>
+            </div>
+            <div class="hero-cta">
+              <a class="btn btn-primary" href={LINKS.repo} rel="noopener"><Icon name="github" size={18} /> View on GitHub</a>
+              <a class="btn btn-ghost" href={LINKS.pkg} rel="noopener">Go reference <Icon name="arrow-up-right" size={16} /></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>

@@ -1,0 +1,60 @@
+---
+import { Code } from 'astro:components';
+import Icon from './Icon.astro';
+import { snippets } from '../snippets';
+---
+<div class="tabs" data-tabs>
+  <div class="tab-list" role="tablist" aria-label="Getting started">
+    {snippets.map((s, i) => (
+      <button
+        class="tab"
+        type="button"
+        role="tab"
+        id={`tab-${s.id}`}
+        aria-controls={`panel-${s.id}`}
+        aria-selected={i === 0 ? 'true' : 'false'}
+        tabindex={i === 0 ? 0 : -1}
+      >{s.tab}</button>
+    ))}
+  </div>
+  {snippets.map((s, i) => (
+    <div class="tab-panel" role="tabpanel" id={`panel-${s.id}`} aria-labelledby={`tab-${s.id}`} tabindex="0" hidden={i !== 0}>
+      <div class="code-head">
+        <p>{s.intro}</p>
+        <div class="code-tools">
+          <span class="code-lang">{s.lang === 'go' ? 'Go' : 'Shell'}</span>
+          <button class="copy" type="button" data-copy={s.code} aria-label={`Copy the ${s.tab.toLowerCase()} code`}>
+            <Icon name="copy" size={16} class="i-copy" /><Icon name="check" size={16} class="i-done" /><span class="copy-label">Copy</span>
+          </button>
+        </div>
+      </div>
+      <div class="code-block">
+        <Code code={s.code} lang={s.lang} theme="vitesse-dark" />
+      </div>
+    </div>
+  ))}
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const select = (tab: HTMLButtonElement, focus = false) => {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')!)!.hidden = !on;
+      }
+      if (focus) tab.focus();
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t));
+      t.addEventListener('keydown', (e) => {
+        const keys: Record<string, number> = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        select(tabs[(keys[e.key] + tabs.length) % tabs.length], true);
+      });
+    });
+  });
+</script>

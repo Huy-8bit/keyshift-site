@@ -1,0 +1,20 @@
+<script>
+  // Copy buttons anywhere on the page: <button data-copy="text">.
+  document.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-copy]');
+    if (!btn) return;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+      btn.classList.add('is-done');
+      const label = btn.querySelector('.copy-label');
+      const before = label?.textContent;
+      if (label) label.textContent = 'Copied';
+      setTimeout(() => {
+        btn.classList.remove('is-done');
+        if (label && before) label.textContent = before;
+      }, 1600);
+    } catch {
+      /* clipboard unavailable: the text stays selectable */
+    }
+  });
+</script>

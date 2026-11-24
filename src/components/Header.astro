@@ -1,0 +1,64 @@
+---
+import Icon from './Icon.astro';
+import Wordmark from './Wordmark.astro';
+import { LINKS, SITE, url } from '../config';
+
+const nav = [
+  { href: '#how', label: 'How it works' },
+  { href: '#quickstart', label: 'Quick start' },
+  { href: '#benchmarks', label: 'Benchmarks' },
+  { href: '#compatibility', label: 'Compatibility' },
+  { href: '#docs', label: 'Docs' },
+];
+const home = url('/');
+---
+<header class="site-header" data-header>
+  <div class="wrap header-inner">
+    <a class="brand" href={home} aria-label="KeyShift home"><Wordmark /></a>
+    <nav class="nav" aria-label="Main">
+      <ul>
+        {nav.map((n) => <li><a href={`${home}${n.href}`}>{n.label}</a></li>)}
+      </ul>
+    </nav>
+    <div class="header-actions">
+      <a class="version" href={LINKS.changelog} rel="noopener" title="Changelog">v{SITE.version}</a>
+      <a class="btn btn-ghost btn-sm" href={LINKS.repo} rel="noopener"><Icon name="github" size={18} /> <span class="hide-sm">GitHub</span></a>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu" data-menu>
+        <Icon name="menu" size={22} class="i-open" /><Icon name="close" size={22} class="i-close" />
+      </button>
+    </div>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Main" hidden>
+    <ul class="wrap">
+      {nav.map((n) => <li><a href={`${home}${n.href}`}>{n.label}</a></li>)}
+      <li><a href={LINKS.pkg} rel="noopener">Go reference <Icon name="arrow-up-right" size={16} /></a></li>
+    </ul>
+  </nav>
+</header>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const btn = document.querySelector<HTMLButtonElement>('[data-menu]');
+  const panel = document.getElementById('mobile-nav');
+  if (header && btn && panel) {
+    const setOpen = (open: boolean) => {
+      btn.setAttribute('aria-expanded', String(open));
+      btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      panel.hidden = !open;
+      header.classList.toggle('is-open', open);
+    };
+    btn.addEventListener('click', () => setOpen(btn.getAttribute('aria-expanded') !== 'true'));
+    panel.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('a')) setOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && btn.getAttribute('aria-expanded') === 'true') {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+    const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+</script>

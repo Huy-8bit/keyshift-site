@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face{font-family:Bricolage;src:url(../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2) format('woff2');font-weight:200 800;font-display:block}
+  @font-face{font-family:Plex;src:url(../node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2) format('woff2');font-weight:100 700;font-display:block}
+  @font-face{font-family:PlexMono;src:url(../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:block}
+  @font-face{font-family:PlexMono;src:url(../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2) format('woff2');font-weight:600;font-display:block}
+  *{box-sizing:border-box}
+  html,body{margin:0;width:1200px;height:630px}
+  body{position:relative;overflow:hidden;background:#0c0e11;color:#eef1f4;font-family:Plex,sans-serif}
+  .dots{position:absolute;inset:0;background-image:radial-gradient(rgba(214,224,236,.11) 1.2px,transparent 1.6px);background-size:26px 26px;-webkit-mask-image:radial-gradient(ellipse 70% 80% at 72% 45%,#000 20%,transparent 75%)}
+  .glow{position:absolute;right:-220px;top:-200px;width:900px;height:900px;background:radial-gradient(circle,rgba(255,107,53,.22),rgba(255,184,77,.06) 42%,transparent 68%)}
+  .copy{position:absolute;left:84px;top:86px;width:560px}
+  .mark{display:inline-block;position:relative;padding-bottom:9px;font:700 46px/1 Bricolage;letter-spacing:-.03em}
+  .mark span{color:#ff9466}
+  .mark i{position:absolute;left:2px;right:2px;bottom:0;height:5px;border-radius:3px;background:linear-gradient(90deg,#56657a,#7d8a99 22%,#ffb84d 62%,#ff6b35)}
+  h1{margin:46px 0 0;font:760 64px/1.02 Bricolage;letter-spacing:-.035em}
+  h1 em{font-style:normal;background:linear-gradient(90deg,#ffc463,#ff7a3d 60%,#ff5a2a);-webkit-background-clip:text;color:transparent}
+  p{margin:28px 0 0;font-size:25px;line-height:1.4;color:#b3bcc6;width:520px}
+  .meta{position:absolute;left:84px;bottom:66px;display:flex;gap:26px;font:500 19px/1 PlexMono;color:#8a94a0}
+  .meta span{display:flex;align-items:center;gap:10px}
+  .meta span::before{content:"";width:7px;height:7px;border-radius:2px;background:#ffb84d}
+  .panel{position:absolute;right:72px;top:106px;width:440px;padding:18px;border-radius:22px;border:1px solid rgba(214,224,236,.16);background:linear-gradient(180deg,#161b22,#111419);box-shadow:0 50px 90px -40px rgba(0,0,0,.9)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .t{height:112px;padding:14px;border-radius:12px;border:1px solid rgba(214,224,236,.09);background:#12161b;display:flex;flex-direction:column;gap:7px}
+  .k{font:500 15px/1.2 PlexMono}
+  .s{font:600 12px/1.2 PlexMono;letter-spacing:.05em;text-transform:uppercase;color:#8a94a0}
+  .h{margin-top:auto;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+  .h i{display:block;height:100%;border-radius:3px;background:#7d8a99}
+  .c{border-color:rgba(255,184,77,.45);background:rgba(255,184,77,.05)} .c .s{color:#ffb84d} .c .h i{background:#ffb84d}
+  .a{border-color:rgba(255,107,53,.6);background:linear-gradient(180deg,rgba(255,107,53,.2),rgba(255,107,53,.06));box-shadow:0 0 30px -10px rgba(255,107,53,.8)} .a .s{color:#ff9466} .a .h i{background:linear-gradient(90deg,#ffc463,#ff6b35)}
+  .d{border-color:rgba(111,211,255,.45);background:rgba(111,211,255,.07)} .d .s{color:#6fd3ff} .d .h i{background:#6fd3ff}
+  .b{border-style:dashed;border-color:rgba(214,224,236,.16);background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 7px,transparent 7px 14px),#101317} .b .h i{background:#4a5563}
+  .foot{margin-top:16px;padding-top:14px;border-top:1px solid rgba(214,224,236,.09);font:500 14px/1.5 PlexMono;color:#b3bcc6}
+  .foot b{color:#ffcf8a;font-weight:500}
+</style></head>
+<body>
+  <div class="glow"></div><div class="dots"></div>
+  <div class="copy">
+    <div class="mark">Key<span>Shift</span><i></i></div>
+    <h1>Detect <em>hot keys.</em><br>Cache intelligently.<br>Scale efficiently.</h1>
+    <p>Adaptive, selective client-side caching for Redis in Go.</p>
+  </div>
+  <div class="meta"><span>Go SDK</span><span>go-redis · rueidis</span><span>Apache 2.0</span></div>
+  <div class="panel">
+    <div class="grid">
+      <div class="t a"><span class="k">config:flags</span><span class="s">admitted</span><span class="h"><i style="width:88%"></i></span></div>
+      <div class="t c"><span class="k">product:123</span><span class="s">candidate</span><span class="h"><i style="width:74%"></i></span></div>
+      <div class="t"><span class="k">cart:7</span><span class="s">cold</span><span class="h"><i style="width:14%"></i></span></div>
+      <div class="t d"><span class="k">inventory:55</span><span class="s">cooldown</span><span class="h"><i style="width:70%"></i></span></div>
+      <div class="t a"><span class="k">price:123</span><span class="s">admitted</span><span class="h"><i style="width:76%"></i></span></div>
+      <div class="t b"><span class="k">balance:9</span><span class="s">bypassed</span><span class="h"><i style="width:54%"></i></span></div>
+    </div>
+    <div class="foot"><b>client.Explain</b>("inventory:55").Reason<br>"observed hit ratio 0.04 below exit threshold 0.30; cooldown 1m0s"</div>
+  </div>
+</body></html>

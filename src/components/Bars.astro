@@ -1,0 +1,26 @@
+---
+import type { BarChart } from '../content';
+interface Props {
+  chart: BarChart;
+}
+const { chart } = Astro.props;
+---
+<figure class:list={['chart', { 'chart-loss': chart.favours === 'conventional' }]} aria-labelledby={`${chart.id}-t`}>
+  <figcaption>
+    <h3 id={`${chart.id}-t`}>{chart.title}</h3>
+    {chart.favours === 'conventional' && <span class="chart-flag">Conventional wins</span>}
+    <p class="chart-context">{chart.context}</p>
+  </figcaption>
+  <dl class="bars">
+    {chart.rows.map((r) => (
+      <div class:list={['bar', { 'bar-ks': r.ks }]}>
+        <dt>{r.label}</dt>
+        <dd>
+          <span class="bar-track" aria-hidden="true"><i style={`--w:${Math.max((r.value / chart.max) * 100, r.value > 0 ? 1.2 : 0)}%`}></i></span>
+          <span class="bar-value">{r.display}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+  <p class="chart-takeaway">{chart.takeaway}</p>
+</figure>

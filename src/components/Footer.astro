@@ -1,0 +1,52 @@
+---
+import Wordmark from './Wordmark.astro';
+import { LINKS, SITE, doc } from '../config';
+
+const cols = [
+  {
+    title: 'Project',
+    links: [
+      { href: LINKS.repo, label: 'GitHub' },
+      { href: LINKS.pkg, label: 'Go reference' },
+      { href: LINKS.changelog, label: 'Changelog' },
+      { href: LINKS.issues, label: 'Issues' },
+    ],
+  },
+  {
+    title: 'Documentation',
+    links: [
+      { href: doc('quickstart.md'), label: 'Quickstart' },
+      { href: doc('how-it-works.md'), label: 'How it works' },
+      { href: doc('benchmarks.md'), label: 'Benchmarks' },
+      { href: doc('limitations.md'), label: 'Limitations' },
+    ],
+  },
+  {
+    title: 'Community',
+    links: [
+      { href: LINKS.contributing, label: 'Contributing' },
+      { href: LINKS.security, label: 'Security policy' },
+      { href: LINKS.license, label: 'Apache License 2.0' },
+    ],
+  },
+];
+---
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div class="footer-brand">
+      <Wordmark size="lg" />
+      <p>{SITE.tagline}</p>
+      <p class="footer-meta">v{SITE.version} (before 1.0) · Apache 2.0 · Go 1.26+</p>
+    </div>
+    {cols.map((c) => (
+      <div class="footer-col">
+        <h2>{c.title}</h2>
+        <ul>{c.links.map((l) => <li><a href={l.href} rel="noopener">{l.label}</a></li>)}</ul>
+      </div>
+    ))}
+  </div>
+  <div class="wrap footer-bottom">
+    <p>© {SITE.year} <a href={LINKS.portfolio} rel="noopener">{SITE.author}</a>. KeyShift is open source under the Apache License 2.0.</p>
+    <p>Redis is a trademark of Redis Ltd. KeyShift is an independent project.</p>
+  </div>
+</footer>
