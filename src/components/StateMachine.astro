@@ -1,0 +1,80 @@
+---
+// Key states and the rules that move a key between them (defaults from docs/adaptive-admission.md).
+// Wide screens get the drawn diagram; narrow screens (and screen readers) get the same rules as a list.
+import { head, DOWN, UP, LEFT, RIGHT } from '../lib/svg';
+import { transitions } from '../content';
+
+const W = 180;
+const H = 56;
+const nodes = [
+  { id: 'cold', label: 'COLD', sub: 'reads go to Redis', x: 110, y: 40 },
+  { id: 'candidate', label: 'CANDIDATE', sub: 'proving itself', x: 570, y: 40 },
+  { id: 'admitted', label: 'ADMITTED', sub: 'served from memory', x: 570, y: 324 },
+  { id: 'cooldown', label: 'COOLDOWN', sub: 'kept out for a while', x: 110, y: 324 },
+];
+const diag = { x1: 594, y1: 324, x2: 268, y2: 98 };
+const name = (s: string) => s.toUpperCase();
+---
+<div class="sm">
+  <svg class="diagram sm-svg" viewBox="0 0 860 410" aria-hidden="true">
+    <!-- forward cycle -->
+    <g class="sm-edge sm-e1">
+      <path class="sm-line" d="M292 58 H 566" /><path class="sm-head" d={head(566, 58, ...RIGHT)} />
+    </g>
+    <text class="sm-t" x="429" y="44" text-anchor="middle">reads ≥ 2/s and predicted hit ratio ≥ 0.6</text>
+
+    <g class="sm-edge sm-e2">
+      <path class="sm-line" d="M660 98 V 320" /><path class="sm-head" d={head(660, 320, ...DOWN)} />
+    </g>
+    <text class="sm-t" x="678" y="190">qualifies 2 windows</text>
+    <text class="sm-t" x="678" y="210">in a row and fits</text>
+    <text class="sm-t" x="678" y="230">the memory budget</text>
+
+    <g class="sm-edge sm-e3">
+      <path class="sm-line" d="M568 352 H 294" /><path class="sm-head" d={head(294, 352, ...LEFT)} />
+    </g>
+    <text class="sm-t" x="429" y="340" text-anchor="middle">measured hit ratio &lt; 0.3</text>
+    <text class="sm-t sm-t-dim" x="429" y="374" text-anchor="middle">usually: something else writes the key</text>
+
+    <g class="sm-edge sm-e4">
+      <path class="sm-line" d="M200 322 V 100" /><path class="sm-head" d={head(200, 100, ...UP)} />
+    </g>
+    <text class="sm-t" x="184" y="190" text-anchor="end">cooldown ends</text>
+    <text class="sm-t sm-t-dim" x="184" y="210" text-anchor="end">30 s, doubling</text>
+    <text class="sm-t sm-t-dim" x="184" y="230" text-anchor="end">per strike, max 16×</text>
+
+    <!-- ways back to COLD -->
+    <g class="sm-edge sm-back">
+      <path class="sm-line" d="M568 84 H 294" /><path class="sm-head" d={head(294, 84, ...LEFT)} />
+    </g>
+    <text class="sm-t sm-t-dim" x="429" y="106" text-anchor="middle">stops qualifying</text>
+
+    <g class="sm-edge sm-back">
+      <path class="sm-line" d={`M${diag.x1} ${diag.y1} L${diag.x2} ${diag.y2}`} />
+      <path class="sm-head" d={head(diag.x2, diag.y2, diag.x2 - diag.x1, diag.y2 - diag.y1)} />
+    </g>
+    <rect class="sm-tag" x="334" y="196" width="196" height="28" rx="14" />
+    <text class="sm-t sm-t-dim" x="432" y="215" text-anchor="middle">reads &lt; 1/s for 3 windows</text>
+
+    {nodes.map((n) => (
+      <g class:list={['sm-node', `sm-${n.id}`]}>
+        <rect x={n.x} y={n.y} width={W} height={H} rx="12" />
+        <text class="sm-label" x={n.x + W / 2} y={n.y + 25} text-anchor="middle">{n.label}</text>
+        <text class="sm-sub" x={n.x + W / 2} y={n.y + 44} text-anchor="middle">{n.sub}</text>
+      </g>
+    ))}
+  </svg>
+
+  <ol class="sm-list" aria-label="How a key moves between states">
+    {transitions.map((t) => (
+      <li>
+        <span class="sm-move">
+          <span class={`pill pill-${t.from}`}>{name(t.from)}</span>
+          <span class="sm-arrow" aria-label="to">→</span>
+          <span class={`pill pill-${t.to}`}>{name(t.to)}</span>
+        </span>
+        <span class="sm-when">{t.when}</span>
+      </li>
+    ))}
+  </ol>
+</div>

@@ -1,0 +1,199 @@
+---
+// Interactive diagram: pick a case and follow the path a read (or a change) takes.
+// Paths and steps follow docs/how-it-works.md.
+import { head, DOWN, UP, LEFT } from '../lib/svg';
+import { scenarios } from '../content';
+
+// Edges of the diagram. `d` is the line, `h` the arrowhead(s).
+const edges = {
+  entry: { d: 'M220 60 V 141', h: [head(220, 141, ...DOWN)] },
+  detect: { d: 'M212 150 H 108 V 188', h: [head(108, 188, ...DOWN)], dash: true },
+  yes: { d: 'M228 150 H 332 V 188', h: [head(332, 188, ...DOWN)] },
+  no: { d: 'M220 158 V 468', h: [head(220, 468, ...DOWN)] },
+  hit: { d: 'M404 190 V 36 H 332', h: [head(332, 36, ...LEFT)] },
+  probe: { d: 'M108 372 V 468', h: [head(108, 468, ...DOWN)], dash: true },
+  fill: { d: 'M280 320 V 468', h: [head(280, 468, ...DOWN), head(280, 320, ...UP)] },
+  inval: { d: 'M344 470 V 322', h: [head(344, 322, ...UP)], dash: true, ice: true },
+  set: { d: 'M344 588 V 556', h: [head(344, 556, ...UP)] },
+} as const;
+
+// What each case lights up, and where the moving dots travel.
+const plan: Record<string, { on: (keyof typeof edges)[]; bad?: (keyof typeof edges)[]; packets: { path: string; dur: number }[] }> = {
+  cold: { on: ['entry', 'no', 'detect'], packets: [{ path: 'M220 60 V 468 V 60', dur: 3 }] },
+  hit: { on: ['entry', 'yes', 'hit'], packets: [{ path: 'M220 60 V 150 H 332 V 234 H 404 V 36 H 334', dur: 2.8 }] },
+  miss: {
+    on: ['entry', 'yes', 'fill', 'hit'],
+    packets: [{ path: 'M220 60 V 150 H 332 V 234 H 280 V 468 V 234 H 404 V 36 H 334', dur: 4.4 }],
+  },
+  write: { on: ['set', 'inval'], packets: [{ path: 'M344 588 V 234', dur: 2.6 }] },
+  unhealthy: {
+    on: ['entry', 'no'],
+    bad: ['probe'],
+    packets: [
+      { path: 'M108 372 V 446', dur: 1.8 },
+      { path: 'M220 60 V 468 V 60', dur: 3 },
+    ],
+  },
+};
+const chips = ['product:123', 'product:88', 'category:4'];
+const first = scenarios[0];
+---
+<div class="readflow" data-readflow={JSON.stringify(plan)}>
+  <div class="rf-tabs" role="tablist" aria-label="Choose a case">
+    {scenarios.map((s, i) => (
+      <button class="rf-tab" type="button" role="tab" id={`rf-tab-${s.id}`} aria-controls="rf-panel" aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-id={s.id}>
+        <span class="rf-n" aria-hidden="true">{i + 1}</span>{s.label}
+      </button>
+    ))}
+  </div>
+
+  <div class="rf-body">
+    <div class="rf-figure">
+      <svg class="diagram rf-svg" viewBox="0 0 440 640" data-s={first.id} aria-hidden="true">
+        <!-- your code -->
+        <text class="d-small" x="98" y="41" text-anchor="end">your code</text>
+        <rect class="d-node" x="110" y="12" width="220" height="48" rx="12" />
+        <text class="d-code" x="220" y="42" text-anchor="middle">client.Get(ctx, key)</text>
+
+        <!-- SDK -->
+        <rect class="d-ks d-ks-dash" x="12" y="92" width="416" height="312" rx="16" />
+        <text class="d-kicker d-kicker-ks" x="28" y="116">KEYSHIFT SDK</text>
+        <circle class="d-junction" cx="220" cy="150" r="7" />
+        <text class="d-label" x="206" y="140" text-anchor="end">admitted?</text>
+        <text class="d-small" x="240" y="141">yes</text>
+        <text class="d-small" x="228" y="190">no</text>
+        <text class="d-small" x="396" y="120" text-anchor="end">from memory</text>
+
+        <rect class="d-node n-detector" x="28" y="190" width="160" height="62" rx="10" />
+        <text class="d-label" x="108" y="217" text-anchor="middle">hot-key detector</text>
+        <text class="d-small" x="108" y="238" text-anchor="middle">counts every read</text>
+
+        <rect class="d-cache n-cache" x="252" y="190" width="160" height="128" rx="10" />
+        <text class="d-kicker" x="266" y="211">LOCAL CACHE</text>
+        {chips.map((c, i) => (
+          <g class:list={['rf-chip', `rf-chip-${i}`]}>
+            <rect class="d-chip" x="266" y={222 + i * 30} width="132" height="24" rx="6" />
+            <text class="d-chipt d-chipt-sm" x="276" y={238 + i * 30}>{c}</text>
+          </g>
+        ))}
+
+        <rect class="d-node n-probe" x="28" y="300" width="160" height="72" rx="10" />
+        <text class="d-label" x="108" y="330" text-anchor="middle">health probe</text>
+        <text class="d-small" x="108" y="351" text-anchor="middle">every second</text>
+
+        <!-- Redis -->
+        <rect class="d-redis n-redis" x="40" y="470" width="360" height="84" rx="14" />
+        <text class="d-title" x="60" y="506">Redis</text>
+        <text class="d-small" x="60" y="530">client tracking on</text>
+        <rect class="d-cache" x="246" y="486" width="140" height="52" rx="8" />
+        <text class="d-kicker" x="258" y="506">TRACKING TABLE</text>
+        <rect class="cmp-row" x="258" y="516" width="96" height="5" rx="2.5" />
+        <rect class="cmp-row" x="258" y="526" width="74" height="5" rx="2.5" />
+
+        <!-- another service -->
+        <rect class="d-node n-writer" x="252" y="588" width="176" height="44" rx="12" />
+        <text class="d-label" x="340" y="615" text-anchor="middle">another service</text>
+
+        <!-- edge labels -->
+        <text class="d-small" x="116" y="430">probe</text>
+        <text class="d-small" x="288" y="402">GET</text>
+        <text class="d-small d-ice-t" x="352" y="430">invalidate</text>
+        <text class="d-small" x="354" y="578">SET</text>
+
+        {Object.entries(edges).map(([id, e]) => (
+          <g class:list={['rf-edge', { 'is-dash': 'dash' in e && e.dash, 'is-ice': 'ice' in e && e.ice }]} data-e={id}>
+            <path class="rf-line" d={e.d} />
+            {e.h.map((h) => <path class="rf-head" d={h} />)}
+          </g>
+        ))}
+
+        <g class="rf-fail">
+          <path d="M100 438 L116 454 M116 438 L100 454" />
+        </g>
+
+        <g class="d-packets" data-packets></g>
+      </svg>
+    </div>
+
+    <div class="rf-text" id="rf-panel" role="tabpanel" aria-labelledby={`rf-tab-${first.id}`} aria-live="polite">
+      {scenarios.map((s, i) => (
+        <div class="rf-case" data-case={s.id} hidden={i !== 0}>
+          <h3>{s.title}</h3>
+          <ol class="rf-steps">{s.steps.map((st) => <li set:html={st} />)}</ol>
+          {s.note && <p class="rf-note">{s.note}</p>}
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script>
+  type Plan = Record<string, { on: string[]; bad?: string[]; packets: { path: string; dur: number }[] }>;
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  document.querySelectorAll<HTMLElement>('[data-readflow]').forEach((root) => {
+    const plan: Plan = JSON.parse(root.dataset.readflow!);
+    const svg = root.querySelector<SVGSVGElement>('.rf-svg')!;
+    const layer = root.querySelector<SVGGElement>('[data-packets]')!;
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('.rf-tab')];
+    const cases = [...root.querySelectorAll<HTMLElement>('.rf-case')];
+    const panel = root.querySelector<HTMLElement>('#rf-panel')!;
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const show = (id: string) => {
+      const p = plan[id];
+      svg.dataset.s = id;
+      svg.querySelectorAll<SVGGElement>('.rf-edge').forEach((g) => {
+        const e = g.dataset.e!;
+        g.classList.toggle('on', p.on.includes(e));
+        g.classList.toggle('bad', (p.bad ?? []).includes(e));
+      });
+      cases.forEach((c) => (c.hidden = c.dataset.case !== id));
+      panel.setAttribute('aria-labelledby', `rf-tab-${id}`);
+
+      layer.replaceChildren();
+      if (still.matches) return;
+      for (const pk of p.packets) {
+        const dot = document.createElementNS(SVGNS, 'circle');
+        dot.setAttribute('r', '6');
+        dot.setAttribute('class', `pk ${id === 'unhealthy' && pk === p.packets[0] ? 'pk-bad' : id === 'write' ? 'pk-ice' : 'pk-hot'}`);
+        const move = document.createElementNS(SVGNS, 'animateMotion');
+        move.setAttribute('path', pk.path);
+        move.setAttribute('dur', `${pk.dur}s`);
+        move.setAttribute('repeatCount', 'indefinite');
+        move.setAttribute('begin', 'indefinite');
+        const fade = document.createElementNS(SVGNS, 'animate');
+        fade.setAttribute('attributeName', 'opacity');
+        fade.setAttribute('values', '0;1;1;0');
+        fade.setAttribute('keyTimes', '0;0.06;0.92;1');
+        fade.setAttribute('dur', `${pk.dur}s`);
+        fade.setAttribute('repeatCount', 'indefinite');
+        fade.setAttribute('begin', 'indefinite');
+        dot.append(move, fade);
+        layer.append(dot);
+        (move as unknown as SVGAnimationElement).beginElement();
+        (fade as unknown as SVGAnimationElement).beginElement();
+      }
+    };
+
+    const select = (tab: HTMLButtonElement, focus = false) => {
+      tabs.forEach((t) => {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+      });
+      show(tab.dataset.id!);
+      if (focus) tab.focus();
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t));
+      t.addEventListener('keydown', (e) => {
+        const keys: Record<string, number> = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: tabs.length - 1 };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        select(tabs[(keys[e.key] + tabs.length) % tabs.length], true);
+      });
+    });
+    show(tabs[0].dataset.id!);
+    still.addEventListener('change', () => show(svg.dataset.s!));
+  });
+</script>

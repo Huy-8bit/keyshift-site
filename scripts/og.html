@@ -23,7 +23,7 @@
   .panel{position:absolute;right:72px;top:106px;width:440px;padding:18px;border-radius:22px;border:1px solid rgba(214,224,236,.16);background:linear-gradient(180deg,#161b22,#111419);box-shadow:0 50px 90px -40px rgba(0,0,0,.9)}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .t{height:112px;padding:14px;border-radius:12px;border:1px solid rgba(214,224,236,.09);background:#12161b;display:flex;flex-direction:column;gap:7px}
-  .k{font:500 15px/1.2 PlexMono}
+  .k{font:500 14px/1.2 PlexMono;white-space:nowrap}
   .s{font:600 12px/1.2 PlexMono;letter-spacing:.05em;text-transform:uppercase;color:#8a94a0}
   .h{margin-top:auto;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
   .h i{display:block;height:100%;border-radius:3px;background:#7d8a99}
@@ -44,13 +44,13 @@
   <div class="meta"><span>Go SDK</span><span>go-redis · rueidis</span><span>Apache 2.0</span></div>
   <div class="panel">
     <div class="grid">
-      <div class="t a"><span class="k">config:flags</span><span class="s">admitted</span><span class="h"><i style="width:88%"></i></span></div>
-      <div class="t c"><span class="k">product:123</span><span class="s">candidate</span><span class="h"><i style="width:74%"></i></span></div>
-      <div class="t"><span class="k">cart:7</span><span class="s">cold</span><span class="h"><i style="width:14%"></i></span></div>
-      <div class="t d"><span class="k">inventory:55</span><span class="s">cooldown</span><span class="h"><i style="width:70%"></i></span></div>
-      <div class="t a"><span class="k">price:123</span><span class="s">admitted</span><span class="h"><i style="width:76%"></i></span></div>
-      <div class="t b"><span class="k">balance:9</span><span class="s">bypassed</span><span class="h"><i style="width:54%"></i></span></div>
+      <div class="t a"><span class="k">product:123</span><span class="s">admitted</span><span class="h"><i style="width:92%"></i></span></div>
+      <div class="t d"><span class="k">stock:7</span><span class="s">cooldown</span><span class="h"><i style="width:34%"></i></span></div>
+      <div class="t"><span class="k">counter:views</span><span class="s">cold</span><span class="h"><i style="width:70%"></i></span></div>
+      <div class="t"><span class="k">config:flags</span><span class="s">cold</span><span class="h"><i style="width:6%"></i></span></div>
+      <div class="t b"><span class="k">balance:42</span><span class="s">bypassed</span><span class="h"><i style="width:78%"></i></span></div>
+      <div class="t b"><span class="k">report:2026</span><span class="s">bypassed</span><span class="h"><i style="width:40%"></i></span></div>
     </div>
-    <div class="foot"><b>client.Explain</b>("inventory:55").Reason<br>"observed hit ratio 0.04 below exit threshold 0.30; cooldown 1m0s"</div>
+    <div class="foot"><b>client.Explain</b>("stock:7").Reason<br>"observed hit ratio 0.04 below exit threshold 0.30 &hellip; cooldown 1m0s"</div>
   </div>
 </body></html>

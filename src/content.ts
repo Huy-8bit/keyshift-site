@@ -1,68 +1,112 @@
-// Page copy. Every statement and number here comes from the KeyShift README, docs and benchmark report;
-// nothing is invented. Benchmark figures are from one developer machine and are labelled as such on the page.
+// Page copy. Facts and numbers come from the KeyShift README and its docs (how-it-works.md, adaptive-admission.md,
+// benchmarks.md). Nothing is invented. Benchmark figures are from one developer machine and are labelled as such.
 
-export const problems = [
+export const costs = [
   {
-    title: 'Write-heavy keys churn',
-    body: 'Every write invalidates every cached copy, and readers can see stale values while the invalidations are in flight.',
-    viz: 'churn',
+    title: 'Busy keys keep getting thrown away',
+    body: 'Every write invalidates every cached copy of a key. Until that invalidation arrives, readers can still get the old value.',
   },
   {
-    title: 'Redis tracks every key you read',
-    body: 'With default tracking, the server’s tracking table and its invalidation traffic grow with each instance’s whole read set.',
-    viz: 'tracking',
+    title: 'Redis has to remember everything you read',
+    body: 'With default tracking, Redis keeps a record of every key each instance has read. The tracking table and the invalidation traffic grow with the whole read set, not just the hot part.',
   },
   {
-    title: 'Globally hot is not locally hot',
-    body: 'A key read 2,000 times per second across 50 pods may be read only 40 times per second by each pod.',
-    viz: 'split',
+    title: 'Hot across the fleet, lukewarm on each pod',
+    body: 'A key read 2,000 times a second across 50 pods is read only 40 times a second by each one.',
   },
 ] as const;
 
-export const steps = [
+export type Scenario = {
+  id: string;
+  label: string;
+  title: string;
+  steps: string[];
+  note?: string;
+};
+
+// The five paths a read (or a change) can take. Mirrors docs/how-it-works.md.
+export const scenarios: Scenario[] = [
   {
-    title: 'Detect',
-    body: 'Every read passes through a bounded hot-key detector: a sharded Space-Saving top-K with fixed memory. Counts decay every window, so old traffic fades.',
-    facts: ['Space-Saving top-K', '≈ 0.8 MiB at default limits'],
+    id: 'cold',
+    label: 'Not cached',
+    title: 'Most keys: straight to Redis',
+    steps: [
+      'Your code calls <code>client.Get(ctx, key)</code>.',
+      'KeyShift checks the admitted set. This key isn’t in it.',
+      'The read goes to Redis through your normal client, exactly as it would without KeyShift.',
+      'The hot-key detector records the read and the size of the value.',
+    ],
   },
   {
-    title: 'Decide',
-    body: 'Once per window, an admission engine scores each candidate on read rate, predicted or observed hit ratio, write and invalidation rates, value size and the memory budget. A key must qualify for several windows before it is admitted.',
-    facts: ['10 s window by default', 'Hysteresis'],
+    id: 'hit',
+    label: 'Cache hit',
+    title: 'An admitted key, already in memory',
+    steps: [
+      'The key is in the admitted set, so the read goes to the local cache.',
+      'The value is there, and it comes back from process memory without touching the network.',
+      'The hit is counted, so a cached key doesn’t look cold just because it stopped reaching Redis.',
+    ],
   },
   {
-    title: 'Cache',
-    body: 'Admitted keys are read through the client library’s tracked local cache. A local hit never touches the network, and Redis sends the invalidations.',
-    facts: ['CLIENT TRACKING', 'go-redis or rueidis'],
+    id: 'miss',
+    label: 'Cache miss',
+    title: 'First read after a key is admitted',
+    steps: [
+      'The key was just admitted, or its copy was dropped, so the local cache misses.',
+      'The client sends the <code>GET</code> on a connection with client tracking turned on.',
+      'Redis returns the value and remembers that this connection holds the key.',
+      'The value is stored locally. From the next read on, it comes from memory.',
+    ],
   },
   {
-    title: 'Watch',
-    body: 'If a cached key’s measured hit ratio falls, for example because other services write it, the key is demoted and put into a cooldown that grows exponentially.',
-    facts: ['Measured hit ratio', 'Exponential cooldown'],
+    id: 'write',
+    label: 'Key changes',
+    title: 'Someone else writes the key',
+    steps: [
+      'Another service writes or deletes the key, or it expires.',
+      'Redis pushes an invalidation to every connection that tracks the key.',
+      'The local copy is dropped and KeyShift counts the invalidation.',
+      'The next read fetches the new value from Redis.',
+    ],
+    note: 'Writes made through KeyShift itself drop the local copy as soon as they return. And no cached value is ever older than max_staleness, 3 s by default.',
   },
   {
-    title: 'Stay safe',
-    body: 'A health probe checks client tracking. If tracking cannot be confirmed, caching is suspended and the local cache is flushed. A hard bound caps how old any cached value can be.',
-    facts: ['Health probe', 'max_staleness 3 s by default'],
+    id: 'unhealthy',
+    label: 'Tracking lost',
+    title: 'When tracking can’t be confirmed',
+    steps: [
+      'A health probe checks the tracked path every second.',
+      'A probe fails or times out, or a cached read hits a transport error.',
+      'KeyShift empties the admitted set and flushes the local cache.',
+      'Every read goes to Redis until probes pass again. Caching restarts from an empty cache.',
+    ],
   },
-  {
-    title: 'Explain',
-    body: 'client.Explain(key) returns the state of any key and a human-readable reason for it, such as why it was demoted and for how long.',
-    facts: ['Decision.State', 'Decision.Reason'],
-  },
+];
+
+// State transitions with their default thresholds (docs/adaptive-admission.md).
+export const transitions = [
+  { from: 'cold', to: 'candidate', when: 'Read rate reaches 2/s and the predicted hit ratio reaches 0.6.' },
+  { from: 'candidate', to: 'admitted', when: 'It qualifies two windows in a row and fits in the memory budget.' },
+  { from: 'admitted', to: 'cooldown', when: 'The measured hit ratio drops below 0.3, usually because something else writes the key.' },
+  { from: 'cooldown', to: 'cold', when: 'The cooldown ends: 30 s at first, doubling with each strike, up to 16×.' },
+  { from: 'candidate', to: 'cold', when: 'It stops qualifying.' },
+  { from: 'admitted', to: 'cold', when: 'Its read rate stays under 1/s for three windows.' },
 ] as const;
 
-export const lifecycle = [
-  { state: 'cold', label: 'COLD', note: 'Reads go straight to Redis.' },
-  { state: 'candidate', label: 'CANDIDATE', note: 'Qualifies, and has to keep qualifying for several windows.' },
-  { state: 'admitted', label: 'ADMITTED', note: 'Read through the tracked local cache.' },
-  { state: 'cooldown', label: 'COOLDOWN', note: 'Demoted after its hit ratio fell. The cooldown grows each time.' },
+export const otherStates = [
+  { state: 'bypassed', label: 'BYPASSED', note: 'Matches a deny pattern, or the value is over 64 KiB.' },
+  { state: 'disabled', label: 'DISABLED', note: 'Caching is switched off by configuration.' },
+  { state: 'unhealthy', label: 'UNHEALTHY', note: 'Tracking can’t be confirmed, so caching is paused for every key.' },
 ] as const;
 
-export const sideStates = [
-  { state: 'bypassed', label: 'BYPASSED', note: 'deny rule or oversized value' },
-  { state: 'disabled', label: 'DISABLED', note: '' },
-  { state: 'unhealthy', label: 'UNHEALTHY', note: '' },
+// Worked example from docs/how-it-works.md: one pod, six keys.
+export const worked = [
+  { key: 'product:123', reads: '2,000/s', writes: 'none', state: 'admitted', outcome: 'Admitted after two windows. About 99.9% of reads are local hits.' },
+  { key: 'stock:7', reads: '15/s', writes: '25/s, another service', state: 'cooldown', outcome: 'Admitted on probation, then its measured hit ratio is close to zero. Cooldown, longer each time.' },
+  { key: 'counter:views', reads: '500/s', writes: '400/s, this pod', state: 'cold', outcome: 'Predicted hit ratio is under 0.6, so it is never admitted.' },
+  { key: 'config:flags', reads: '0.5/s', writes: 'rare', state: 'cold', outcome: 'Too few reads to be worth it, unless you pin it.' },
+  { key: 'balance:42', reads: '900/s', writes: 'rare', state: 'bypassed', outcome: 'Matches a deny pattern, so it is never cached.' },
+  { key: 'report:2026', reads: '50/s', writes: 'none', state: 'bypassed', outcome: 'The value is 2 MiB, over the size limit.' },
 ] as const;
 
 export type BarChart = {
@@ -78,72 +122,57 @@ export type BarChart = {
 export const charts: BarChart[] = [
   {
     id: 'tracked',
-    title: 'Keys tracked by Redis',
+    title: 'Keys Redis had to track',
     context: 'Zipf workload, one instance',
     max: 32885,
     rows: [
-      { label: 'Conventional', value: 32885, display: '32,885' },
+      { label: 'Cache every read', value: 32885, display: '32,885' },
       { label: 'KeyShift', value: 547, display: '≤ 547', ks: true },
     ],
-    takeaway: 'About 100× fewer. KeyShift tracked a few hundred keys; 547 was the most in any scenario.',
+    takeaway: 'About 100× fewer. KeyShift tracked a few hundred keys, and never more than 547 in any scenario.',
   },
   {
     id: 'invalidations',
-    title: 'Invalidation traffic',
+    title: 'Invalidations sent',
     context: 'Open-loop Zipf run',
     max: 5739,
     rows: [
-      { label: 'Conventional', value: 5739, display: '5,739' },
+      { label: 'Cache every read', value: 5739, display: '5,739' },
       { label: 'KeyShift', value: 92, display: '92', ks: true },
     ],
-    takeaway: 'Only the admitted keys are tracked, so far fewer invalidations are sent.',
+    takeaway: 'Fewer tracked keys means far fewer invalidations to send.',
   },
   {
     id: 'stale',
-    title: 'Stale reads, write-heavy workload',
+    title: 'Stale reads on a write-heavy workload',
     context: 'Open loop',
     max: 10,
     rows: [
-      { label: 'Conventional', value: 6.9, display: '6.9%' },
+      { label: 'Cache every read', value: 6.9, display: '6.9%' },
       { label: 'KeyShift', value: 0, display: '0', ks: true },
     ],
-    takeaway: 'Conventional caching served stale values up to 8.7 ms old. KeyShift refused to cache those keys.',
+    takeaway: 'The stale values were up to 8.7 ms old. KeyShift didn’t cache those keys at all.',
   },
   {
     id: 'hotshift',
-    title: 'Hit ratio when the hot set shifts',
+    title: 'Hit ratio when the hot set moves',
     context: 'Hot-shift scenario',
     max: 100,
     rows: [
-      { label: 'Conventional', value: 71, display: '71%' },
+      { label: 'Cache every read', value: 71, display: '71%' },
       { label: 'KeyShift', value: 50, display: '50%', ks: true },
     ],
-    takeaway: 'Conventional caching wins here, and right after a cold start: KeyShift waits for evidence before it admits a key.',
+    takeaway: 'Caching everything wins here, and right after a cold start, because KeyShift waits for evidence first.',
     favours: 'conventional',
   },
 ];
 
-export const stats = [
-  {
-    value: '50–86%',
-    label: 'fewer Redis GETs',
-    note: 'With either approach, on workloads with locality.',
-  },
-  {
-    value: '~0.3 µs',
-    label: 'per local cache hit',
-    note: 'rueidis driver at any value size; go-redis about 0.4 µs at 64 bytes. A Redis round trip in the same setup took about 0.2 ms.',
-  },
-  {
-    value: '0',
-    label: 'stale reads under faults',
-    note: 'Connections killed and Redis restarted in the middle of a run.',
-  },
-  {
-    value: 'Nothing',
-    label: 'admitted when caching can’t help',
-    note: 'With uniform access or oversized values, its costs matched running with no cache at all.',
-  },
+export const alsoMeasured = [
+  'Both approaches took 50–86% of GETs off Redis on workloads with locality.',
+  'A local hit took about 0.3 µs with rueidis at any value size, and about 0.4 µs with go-redis at 64 bytes. A Redis round trip on the same machine took about 0.2 ms.',
+  'With connections killed and Redis restarted mid-run, KeyShift served no stale reads.',
+  'Where caching can’t help (uniform access, oversized values), it admitted nothing and cost the same as running without a cache.',
+  'In a logical simulation of 5,000 SDK instances on one machine, the controller aggregated the fleet in about 0.1 s, with upload p99 under 5 ms. It is a simulation, not 5,000 real pods.',
 ] as const;
 
 export const comparison = {
@@ -166,66 +195,68 @@ export const compatibility: { server: string; goredis: [Support, string]; rueidi
   { server: 'No RESP3 or no CLIENT permission', goredis: ['direct', 'Direct reads'], rueidis: ['direct', 'Direct reads'] },
 ];
 
-export const sdkApi = ['Get', 'GetBytes', 'GetFresh', 'Set', 'SetString', 'Del', 'Explain', 'Stats', 'ApplyPolicy'] as const;
-export const sdkNext = [
-  { name: 'MGet', note: 'batch reads: uncached keys go in one pipeline, and cross-slot batches work on Cluster' },
-  { name: 'NotifyWrite', note: 'restores read-your-writes after a write made outside the SDK' },
+export const components = [
+  {
+    name: 'Go SDK',
+    tag: 'pkg/keyshift',
+    body: 'Does all the work inside your process. Wrap the go-redis client you already have, or let it create one. <code>Get</code>, <code>GetBytes</code>, <code>GetFresh</code>, <code>Set</code>, <code>SetString</code>, <code>Del</code>, <code>Explain</code>, <code>Stats</code> and <code>ApplyPolicy</code>.',
+    next: 'Coming in the next release: <code>MGet</code> for batch reads, and <code>NotifyWrite</code> to restore read-your-writes after a write made outside the SDK.',
+  },
+  {
+    name: 'Controller',
+    tag: 'optional',
+    body: 'Collects telemetry from every instance and ranks hot keys across the fleet, so you can tell keys that are hot on one pod from keys that are hot everywhere. Rolls out versioned policies in stages, with rollback, behind a REST API with ingest, viewer and admin tokens.',
+  },
+  {
+    name: 'Grafana dashboards',
+    tag: 'Prometheus',
+    body: 'Two ready-made dashboards, KeyShift Fleet and KeyShift SDK. Metrics never carry raw key names: keys are sent as HMAC fingerprints unless you explicitly allow them.',
+  },
+  {
+    name: 'CLI',
+    tag: 'keyshift',
+    body: '<code>doctor</code>, <code>inspect</code>, <code>top</code>, <code>stats</code>, <code>instances</code>, <code>policy</code>, <code>bench</code> and <code>simulate</code>. It can also run opt-in, time-limited Redis 8.6 HOTKEYS sessions on the server.',
+  },
+  {
+    name: 'Lab',
+    tag: 'Docker Compose',
+    body: '<code>make docker-up</code> starts Redis, the controller, simulated pods, Prometheus and Grafana on one machine. It also has fault-injection tests, the benchmark suite and a 5,000-instance control-plane simulation.',
+  },
 ] as const;
-export const cliCommands = ['doctor', 'inspect', 'top', 'stats', 'instances', 'policy', 'bench', 'simulate'] as const;
 
 export const limits = [
   {
-    title: 'Eventually consistent, within bounds',
-    body: 'A cached value can still be served for a short time after another client changes it. That window is bounded by invalidation delivery and by max_staleness, 3 s by default. KeyShift does not offer strong consistency.',
+    title: 'It’s eventually consistent',
+    body: 'A cached value can be served for a moment after someone else changes it. Invalidation delivery and <code>max_staleness</code> (3 s by default) bound how long that moment can be. There is no strong consistency.',
   },
   {
     title: 'Some data should never be cached',
-    body: 'Balances, locks, rate limits and authorization data belong in <code>DenyPatterns</code>, or should be read with <code>GetFresh</code>, which always goes to Redis.',
+    body: 'Put balances, locks, rate limits and authorization data in <code>DenyPatterns</code>, or read them with <code>GetFresh</code>, which always asks Redis.',
   },
   {
     title: 'It waits for evidence',
-    body: 'A key is admitted only after it qualifies for several windows. When the hot set shifts quickly, or right after a cold start, caching every read gets the higher hit ratio.',
+    body: 'A key needs a couple of windows of good numbers before it is cached. Right after a cold start, or when the hot set moves quickly, caching every read gets more hits.',
   },
   {
-    title: 'Cluster caching needs rueidis',
-    body: 'With go-redis, caching works on standalone Redis. On Redis Cluster the go-redis driver does detection only; caching there uses the rueidis driver.',
+    title: 'Redis Cluster needs rueidis',
+    body: 'With go-redis, caching works on standalone Redis. On Redis Cluster, go-redis only detects hot keys, and caching uses the rueidis driver.',
   },
   {
-    title: 'Version 0.1.0, before 1.0',
-    body: 'APIs may change before 1.0, and KeyShift has not yet been proven in large production deployments. Try it on one service first and watch <code>Explain</code> and the dashboards.',
+    title: 'It’s still young',
+    body: 'This is version 0.1.0. APIs may change before 1.0, and KeyShift hasn’t been proven in large production deployments yet.',
   },
 ] as const;
 
-export const docGroups = [
-  {
-    title: 'Start',
-    docs: [
-      { file: 'quickstart.md', title: 'Quickstart' },
-      { file: 'how-it-works.md', title: 'How it works' },
-      { file: 'architecture.md', title: 'Architecture' },
-    ],
-  },
-  {
-    title: 'Internals',
-    docs: [
-      { file: 'adaptive-admission.md', title: 'Adaptive admission' },
-      { file: 'hotkey-detection.md', title: 'Hot-key detection' },
-      { file: 'consistency.md', title: 'Consistency' },
-    ],
-  },
-  {
-    title: 'Operate',
-    docs: [
-      { file: 'compatibility.md', title: 'Compatibility' },
-      { file: 'observability.md', title: 'Observability' },
-      { file: 'security-model.md', title: 'Security model' },
-    ],
-  },
-  {
-    title: 'Evidence',
-    docs: [
-      { file: 'benchmarks.md', title: 'Benchmarks' },
-      { file: 'limitations.md', title: 'Limitations' },
-    ],
-  },
+export const docs = [
+  { file: 'quickstart.md', title: 'Quickstart' },
+  { file: 'how-it-works.md', title: 'How it works' },
+  { file: 'architecture.md', title: 'Architecture' },
+  { file: 'adaptive-admission.md', title: 'Adaptive admission' },
+  { file: 'hotkey-detection.md', title: 'Hot-key detection' },
+  { file: 'consistency.md', title: 'Consistency' },
+  { file: 'compatibility.md', title: 'Compatibility' },
+  { file: 'observability.md', title: 'Observability' },
+  { file: 'security-model.md', title: 'Security model' },
+  { file: 'benchmarks.md', title: 'Benchmarks' },
+  { file: 'limitations.md', title: 'Limitations' },
 ] as const;

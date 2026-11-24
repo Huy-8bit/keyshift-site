@@ -1,0 +1,66 @@
+---
+// Two instances side by side: one caching every read, one using KeyShift. Illustrative, not measured.
+import { head, LEFT } from '../lib/svg';
+
+const hot = new Set([1, 6, 14, 19]);
+const panels = [
+  {
+    id: 'all',
+    title: 'Cache every read',
+    caption: 'Every key the instance reads is cached, and Redis tracks all of them. Each write sends invalidations to every copy.',
+    chips: 24,
+    rows: 13,
+    inval: [92, 118, 144, 170, 196, 222],
+  },
+  {
+    id: 'ks',
+    title: 'KeyShift',
+    caption: 'Only keys that pay off are cached. Redis tracks just those, so there is less to track and far fewer invalidations.',
+    chips: 0,
+    rows: 3,
+    inval: [118],
+  },
+];
+const ksKeys = ['product:123', 'product:88', 'category:4'];
+---
+<div class="compare-panels">
+  {panels.map((p) => (
+    <figure class:list={['cmp', `cmp-${p.id}`]}>
+      <figcaption>
+        <h3>{p.title}</h3>
+        <p>{p.caption}</p>
+      </figcaption>
+      <svg class="diagram" viewBox="0 0 440 270" aria-hidden="true">
+        <text class="d-kicker" x="12" y="20">ONE INSTANCE</text>
+        <rect class="d-node" x="10" y="32" width="172" height="216" rx="14" />
+        <text class="d-kicker" x="26" y="58">LOCAL CACHE</text>
+        {p.chips > 0 &&
+          Array.from({ length: p.chips }, (_, i) => (
+            <rect class:list={['cmp-chip', { hot: hot.has(i) }]} x={26 + (i % 4) * 38} y={72 + Math.floor(i / 4) * 27} width="32" height="19" rx="4" />
+          ))}
+        {p.chips === 0 &&
+          ksKeys.map((k, i) => (
+            <g>
+              <rect class="d-chip" x="26" y={72 + i * 32} width="140" height="24" rx="6" />
+              <text class="d-chipt d-chipt-sm" x="36" y={88 + i * 32}>{k}</text>
+            </g>
+          ))}
+
+        <text class="d-kicker" x="260" y="20">REDIS</text>
+        <rect class="d-node" x="258" y="32" width="172" height="216" rx="14" />
+        <text class="d-kicker" x="274" y="58">TRACKING TABLE</text>
+        {Array.from({ length: p.rows }, (_, i) => (
+          <rect class="cmp-row" x="274" y={70 + i * 13} width={i % 3 === 0 ? 120 : i % 3 === 1 ? 138 : 104} height="6" rx="3" />
+        ))}
+
+        {p.inval.map((y) => (
+          <g class="cmp-inval">
+            <path class="d-inval d-flow" d={`M254 ${y} H 188`} />
+            <path class="d-line d-ice" d={head(188, y, ...LEFT, 7, 4.5)} />
+          </g>
+        ))}
+        <text class="d-small d-ice-t" x="220" y="262" text-anchor="middle">invalidations</text>
+      </svg>
+    </figure>
+  ))}
+</div>

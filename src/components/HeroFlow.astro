@@ -1,0 +1,73 @@
+---
+// The idea in one picture: hot keys are answered from local memory, every other read goes to Redis,
+// and Redis invalidates cached copies when they change. Illustrative.
+import { head, DOWN, RIGHT, LEFT } from '../lib/svg';
+const chips = ['product:123', 'product:88', 'category:4'];
+const invalPath = 'M414 300 C 414 364, 340 366, 266 366';
+---
+<figure class="hero-flow" aria-labelledby="hero-flow-cap">
+  <svg class="diagram" viewBox="0 0 480 430" role="img" aria-labelledby="hero-flow-title">
+    <title id="hero-flow-title">Inside one instance, KeyShift sends reads of admitted keys to a local cache and every other read to Redis. Redis sends invalidations back to the local cache.</title>
+    <rect class="d-frame" x="8" y="8" width="290" height="414" rx="18" />
+    <text class="d-kicker" x="28" y="36">YOUR SERVICE</text>
+
+    <rect class="d-node" x="28" y="52" width="250" height="50" rx="12" />
+    <text class="d-code" x="153" y="82" text-anchor="middle">client.Get(ctx, key)</text>
+
+    <rect class="d-ks" x="28" y="132" width="250" height="272" rx="14" />
+    <text class="d-title" x="46" y="162">KeyShift</text>
+
+    <path class="d-line" d="M200 102 V 189" />
+    <circle class="d-junction" cx="200" cy="196" r="6" />
+    <text class="d-label" x="186" y="201" text-anchor="end">admitted?</text>
+
+    <path class="d-line d-hot" d="M200 203 V 242" />
+    <path class="d-line d-hot" d={head(200, 242, ...DOWN)} />
+    <text class="d-small" x="210" y="228">yes</text>
+
+    <path class="d-line" d="M207 196 H 356" />
+    <path class="d-line" d={head(356, 196, ...RIGHT)} />
+    <text class="d-small" x="292" y="186">no</text>
+
+    <rect class="d-cache" x="46" y="244" width="214" height="144" rx="10" />
+    <text class="d-kicker" x="60" y="268">LOCAL CACHE</text>
+    {chips.map((c, i) => (
+      <g>
+        <rect class="d-chip" x="60" y={280 + i * 34} width="128" height="26" rx="6" />
+        <text class="d-chipt" x="72" y={298 + i * 34}>{c}</text>
+      </g>
+    ))}
+
+    <rect class="d-redis" x="358" y="150" width="112" height="150" rx="16" />
+    <text class="d-title" x="414" y="222" text-anchor="middle">Redis</text>
+    <text class="d-small" x="414" y="244" text-anchor="middle">other reads</text>
+
+    <path class="d-inval" d={invalPath} />
+    <path class="d-line d-ice" d={head(266, 366, ...LEFT)} />
+    <text class="d-small d-ice-t" x="352" y="396" text-anchor="middle">invalidations</text>
+
+    <g class="d-packets" aria-hidden="true">
+      {[0, 0.55, 1.1].map((b) => (
+        <circle class="pk pk-hot" r="5" cx="0" cy="0">
+          <animateMotion dur="1.65s" begin={`${b}s`} repeatCount="indefinite" path="M200 104 V 236" />
+          <animate attributeName="opacity" dur="1.65s" begin={`${b}s`} repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.12;0.82;1" />
+        </circle>
+      ))}
+      {[0, 1.35].map((b) => (
+        <circle class="pk pk-cold" r="5" cx="0" cy="0">
+          <animateMotion dur="2.7s" begin={`${b}s`} repeatCount="indefinite" path="M200 104 V 196 H 354 H 210" />
+          <animate attributeName="opacity" dur="2.7s" begin={`${b}s`} repeatCount="indefinite" values="0;1;1;0" keyTimes="0;0.08;0.9;1" />
+        </circle>
+      ))}
+      <circle class="pk pk-ice" r="5" cx="0" cy="0">
+        <animateMotion dur="4.2s" repeatCount="indefinite" path={invalPath} keyPoints="0;1;1" keyTimes="0;0.4;1" calcMode="linear" />
+        <animate attributeName="opacity" dur="4.2s" repeatCount="indefinite" values="1;1;0;0" keyTimes="0;0.4;0.42;1" />
+      </circle>
+    </g>
+  </svg>
+  <figcaption id="hero-flow-cap" class="legend">
+    <span><i class="lg lg-hot"></i>served from local memory</span>
+    <span><i class="lg lg-cold"></i>read from Redis</span>
+    <span><i class="lg lg-ice"></i>invalidation</span>
+  </figcaption>
+</figure>

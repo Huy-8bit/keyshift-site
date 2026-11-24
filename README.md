@@ -21,9 +21,12 @@ Astro, static output. Every internal link goes through `url()` in `src/config.ts
 | File | What it holds |
 |---|---|
 | `src/config.ts` | Every external URL (repo, Go reference, docs), version, site metadata |
-| `src/content.ts` | Page copy, benchmark figures, comparison and compatibility tables |
-| `src/snippets.ts` | Code shown in the Quick start tabs (copied from the KeyShift README) |
-| `src/components/KeyField.astro` | The animated hero illustration (scripted, not live data) |
+| `src/content.ts` | Page copy, read-flow cases, state rules, worked example, benchmark figures, tables |
+| `src/snippets.ts` | Code shown in the Get started tabs (copied from the KeyShift README) |
+| `src/components/HeroFlow.astro` | Hero diagram: local cache vs Redis vs invalidations |
+| `src/components/ReadFlow.astro` | Interactive "follow a read" diagram (five cases, from docs/how-it-works.md) |
+| `src/components/StateMachine.astro` | Key states and transition rules (defaults from docs/adaptive-admission.md) |
+| `src/components/CostCompare.astro`, `Architecture.astro` | "Cache every read vs KeyShift" panels and the fleet architecture |
 | `src/styles/global.css` | The whole theme |
 
 ## Accuracy rules for edits

@@ -1,37 +1,37 @@
 ---
-// Request path vs control path. The controller is optional and never sits between the app and Redis.
+// Request path vs control path (docs/architecture.md, docs/how-it-works.md §8).
+// The controller is optional and never sits between your service and Redis.
 ---
 <figure class="arch" aria-labelledby="arch-cap">
   <div class="arch-grid">
     <div class="arch-node arch-fleet">
-      <p class="arch-kicker">Each instance of your service</p>
+      <p class="arch-kicker">Every instance of your service</p>
       <p class="arch-name">Your code + KeyShift SDK</p>
       <ul class="arch-parts">
-        <li>hot-key detector</li><li>admission engine</li><li>tracked local cache</li>
+        <li>detector</li><li>admission</li><li>local cache</li>
       </ul>
-      <p class="arch-foot">Wraps go-redis or rueidis</p>
     </div>
 
     <div class="arch-link arch-req" aria-hidden="true">
-      <span class="arch-line arch-line-out"><em>reads · writes</em></span>
+      <span class="arch-line arch-line-out"><em>reads &amp; writes</em></span>
       <span class="arch-line arch-line-in"><em>invalidations</em></span>
     </div>
 
     <div class="arch-node arch-redis">
-      <p class="arch-kicker">Data</p>
+      <p class="arch-kicker">Unchanged</p>
       <p class="arch-name">Redis</p>
-      <p class="arch-foot">CLIENT TRACKING, RESP3</p>
+      <p class="arch-foot">client tracking, RESP3</p>
     </div>
 
     <div class="arch-link arch-ctl" aria-hidden="true">
-      <span class="arch-vline"><em>telemetry</em></span>
+      <span class="arch-vline"><em>telemetry<br />every ~30 s</em></span>
       <span class="arch-vline arch-vline-up"><em>policies</em></span>
     </div>
 
     <div class="arch-node arch-controller">
       <p class="arch-kicker">Optional</p>
       <p class="arch-name">Controller</p>
-      <p class="arch-foot">Fleet-wide ranking · staged rollout and rollback · REST API</p>
+      <p class="arch-foot">fleet-wide hot keys, versioned policies</p>
     </div>
 
     <div class="arch-link arch-met" aria-hidden="true">
@@ -41,12 +41,14 @@
     <div class="arch-node arch-obs">
       <p class="arch-kicker">Dashboards</p>
       <p class="arch-name">Prometheus + Grafana</p>
-      <p class="arch-foot">KeyShift Fleet · KeyShift SDK</p>
+      <p class="arch-foot">KeyShift Fleet, KeyShift SDK</p>
     </div>
   </div>
   <figcaption id="arch-cap" class="arch-cap">
     <span class="arch-key"><i class="k-req"></i>request path</span>
-    <span class="arch-key"><i class="k-ctl"></i>control path, off the request path</span>
-    <span class="arch-cap-text">If the controller goes down, reads and writes are unaffected.</span>
+    <span class="arch-key"><i class="k-ctl"></i>control path</span>
+    <span class="arch-cap-text">
+      Telemetry carries up to 20 candidate keys per batch, as HMAC fingerprints. Policies can only tighten an instance’s local limits.
+    </span>
   </figcaption>
 </figure>
